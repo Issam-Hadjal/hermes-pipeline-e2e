@@ -11,11 +11,9 @@ nouveau dépôt.
 Créer le dépôt sur github.com, en choisissant les options de visibilité
 publique, le nom et la description.
 
-**Pourquoi ce geste ne peut pas être automatisé.** La création d'un dépôt
-nécessite un token avec des droits d'administration sur l'organisation, ou
-une session GitHub.com authentifiée. Le broker ne possède pas ces droits, et
-aucun worker ne détient de token — c'est une règle de sécurité
-infrastructurelle.
+**Pourquoi ce geste ne peut pas être automatisé.** Un jeton d'installation
+de GitHub App ne peut pas créer de dépôt sur un compte personnel. Il n'est
+pas question de droits d'organisation : le compte n'en est pas une.
 
 ---
 
@@ -25,24 +23,20 @@ Depuis la page « Settings > GitHub Apps » du dépôt, installer les quatre
 apps Hermes nécessaires au fonctionnement du pipeline.
 
 **Pourquoi ce geste ne peut pas être automatisé.** L'installation d'une
-GitHub App sur un dépôt est une action administrateur qui se fait depuis
-l'interface GitHub. Il n'existe pas d'API publique permettant à un worker de
-le faire à la place d'un humain.
+GitHub App exige le consentement explicite du propriétaire du compte dans
+le navigateur. Il est faux d'écrire qu'aucune API ne le permet.
 
 ---
 
 ## 3. Déclarer le dépôt dans l'allowlist des workers du broker
 
 Ajouter le dépôt (au format `owner/nom`) dans la configuration du broker,
-dans la liste des dépôts autorisés. C'est le fichier
-`/opt/data/profiles/bot-dev/gateways/github/broker.yaml` ou l'équivalent
-selon l'installation.
+dans la liste des dépôts autorisés.
 
-**Pourquoi ce geste ne peut pas être automatisé.** Le broker fait partie de
-l'infrastructure Hermes. Un worker automatisé ne peut pas modifier sa propre
-configuration d'accès sans créer un escalade de privilèges. Seul un humain
-ayant accès au serveur ou au fichier de configuration peut effectuer cette
-modification.
+**Pourquoi ce geste ne peut pas être automatisé.** Les fichiers de
+configuration vivent sur l'hôte de la VM, hors du conteneur, et le
+redémarrage des services exige les droits root. L'agent est de l'autre
+côté de la frontière.
 
 ---
 
