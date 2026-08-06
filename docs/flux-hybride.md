@@ -92,6 +92,15 @@ et c'est la carte kanban qui porte l'assignation.
 
 ---
 
+### Quand une issue est-elle nécessaire
+
+Une issue est nécessaire dès qu'un rôle doit juger un travail gouverné par
+les consignes d'un autre rôle. Le savoir est propre à chaque rôle — le
+provisionneur connaît des contraintes que le relecteur n'a pas dans sa
+propre identité. L'issue est le seul canal qui met les deux au même niveau.
+
+---
+
 ## Étape 3 — coder et pousser, sur ton poste
 
 ```bash
