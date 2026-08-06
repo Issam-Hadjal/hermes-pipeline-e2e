@@ -15,7 +15,13 @@ jobs:
       - name: Socle — Marqueurs de conflit non résolus
         run: |
           echo "Recherche des marqueurs de conflit non résolus..."
-          if grep -r --exclude-dir=.git -E '<<<<<<<|=======|>>>>>>>' .; then
+          C1="<<<"
+          C2="<<<"
+          CO="${C1}${C2}<"
+          C3=">>>"
+          C4=">>>"
+          CC="${C3}${C4}>"
+          if grep -rn --exclude-dir=.git -E "^(${CO}|${CC})" .; then
             echo "ERREUR : Marqueurs de conflit non résolus détectés."
             exit 1
           fi
