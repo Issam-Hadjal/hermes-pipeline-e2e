@@ -24,7 +24,7 @@ apps Hermes nécessaires au fonctionnement du pipeline.
 
 **Pourquoi ce geste ne peut pas être automatisé.** L'installation d'une
 GitHub App exige le consentement explicite du propriétaire du compte dans
-le navigateur. Il est faux d'écrire qu'aucune API ne le permet.
+le navigateur.
 
 ---
 
