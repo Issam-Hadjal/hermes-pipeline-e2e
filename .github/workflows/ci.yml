@@ -11,7 +11,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Vérification
+
+      - name: Socle — Marqueurs de conflit non résolus
         run: |
-          echo "Pipeline e2e - CI OK"
-          echo "SHA: ${{ github.sha }}"
+          echo "Recherche des marqueurs de conflit non résolus..."
+          if grep -r --exclude-dir=.git -E '<<<<<<<|=======|>>>>>>>' .; then
+            echo "ERREUR : Marqueurs de conflit non résolus détectés."
+            exit 1
+          fi
+          echo "Aucun marqueur de conflit trouvé."
+
+      - name: Socle — Marqueur de blocage explicite
+        run: |
+          HOLD="FIXME"
+          HOLD="${HOLD}_BLOCK_CI"
+          echo "Recherche du marqueur de blocage..."
+          if grep -r --exclude-dir=.git -F "$HOLD" .; then
+            echo "ERREUR : Marqueur de blocage détecté ($HOLD)."
+            exit 1
+          fi
+          echo "Aucun marqueur de blocage trouvé."
