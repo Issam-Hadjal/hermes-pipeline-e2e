@@ -22,10 +22,14 @@ jobs:
 
           label=""
           if [ "$base" = "dev" ]; then
-            case "$head" in
-              feature/*) label="stage:feature" ;;
-              main)      label="stage:resync" ;;
-            esac
+            if [ "$head" = "main" ]; then
+              label="stage:resync"
+            else
+              # Complément : toute branche qui vise dev sans être main
+              # est une entrée de contenu, quel que soit son préfixe
+              # (feature/, fix/, chore/, docs/, ci/, ...).
+              label="stage:feature"
+            fi
           elif [ "$base" = "main" ] && [ "$head" = "dev" ]; then
             label="stage:integration"
           fi
