@@ -1,0 +1,52 @@
+name: Étiquetage par porte
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déterminer et appliquer le label d'étape
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          base="${{ github.event.pull_request.base.ref }}"
+          head="${{ github.event.pull_request.head.ref }}"
+          pr="${{ github.event.pull_request.number }}"
+
+          label=""
+          if [ "$base" = "dev" ]; then
+            if [ "$head" = "main" ]; then
+              label="stage:resync"
+            else
+              # Complément : toute branche qui vise dev sans être main
+              # est une entrée de contenu, quel que soit son préfixe
+              # (feature/, fix/, chore/, docs/, ci/, ...).
+              label="stage:feature"
+            fi
+          elif [ "$base" = "main" ] && [ "$head" = "dev" ]; then
+            label="stage:integration"
+          fi
+
+          if [ -z "$label" ]; then
+            echo "Aucune porte reconnue pour $head -> $base ; aucun label appliqué."
+            exit 0
+          fi
+
+          # Tolère un label déjà présent (PR rouverte).
+          if gh pr view "$pr" --json labels --jq '.labels[].name' | grep -qx "$label"; then
+            echo "Label '$label' déjà présent sur la PR #$pr."
+            exit 0
+          fi
+
+          if gh pr edit "$pr" --add-label "$label"; then
+            echo "Label '$label' appliqué à la PR #$pr."
+          else
+            echo "::warning::Impossible d'appliquer le label '$label' à la PR #$pr."
+          fi
