@@ -1,6 +1,6 @@
 # Ouvrir un nouveau projet au pipeline
 
-Procédure complète, de la création du dépôt jusqu'à la vérification que les six
+Procédure complète, de la création du dépôt jusqu'à la vérification que les sept
 rôles y interviennent correctement.
 
 Trois gestes ne peuvent pas être délégués à un agent. Ils sont détaillés en
@@ -19,7 +19,7 @@ provisionnement automatisé.
 | #   | Geste                         | Où             | Pourquoi il reste humain                                          |
 | --- | ----------------------------- | -------------- | ----------------------------------------------------------------- |
 | 1   | Créer le dépôt                | github.com     | Un jeton d'App ne peut pas créer de dépôt sur un compte personnel |
-| 2   | Installer les quatre Apps     | github.com     | L'installation exige un consentement humain, par construction     |
+| 2   | Installer les cinq Apps       | github.com     | L'installation exige un consentement humain, par construction     |
 | 3   | Déclarer le dépôt aux workers | VM, `sudo`     | C'est la garde qui garde les gardes — voir §3.1                   |
 | 4   | Vérifier les cinq canaux      | VM             | Intégré au script du geste 3                                      |
 | 5   | Lancer le provisionnement     | Tableau kanban | Carte assignée au provisionneur                                   |
@@ -51,15 +51,15 @@ c'est ce qu'on veut observer.
 
 ---
 
-## 2. Installer les quatre Apps
+## 2. Installer les cinq Apps
 
 Réglages du compte GitHub → **Applications** → onglet **Installed GitHub Apps**.
 
-Pour **chacune** des quatre Apps du pipeline — les identités dev, reviewer,
-merger et admin — ouvrir la configuration et ajouter le nouveau dépôt à la liste
-des dépôts autorisés.
+Pour **chacune** des cinq Apps du pipeline — les identités dev, reviewer,
+merger, admin et scribe — ouvrir la configuration et ajouter le nouveau dépôt
+à la liste des dépôts autorisés.
 
-**Les quatre, sans exception.**
+**Les cinq, sans exception.**
 
 Il en manque une et le cycle s'arrêtera en son milieu sur un refus
 **indistinguable d'un manque de permission**. Le diagnostic coûtera plus cher
@@ -73,6 +73,7 @@ Rappel de la répartition des identités :
 | reviewer        | `bot-reviewer`                   |
 | merger          | `bot-merger`                     |
 | admin           | `bot-admin` et `bot-maintenance` |
+| scribe          | `bot-scribe`                     |
 
 Le rôle de maintenance tourne sur l'identité du provisionneur, avec une politique
 de broker distincte. Conséquence à connaître : **la maintenance ne pourra jamais
@@ -190,13 +191,14 @@ silence, sans avertissement.
 La source est `/opt/data/soul-parts/`, versionnée :
 
 ```
-common.md               tronc commun, partagé par les six
+common.md               tronc commun, partagé par les sept
 identity-dev.md         une identité par rôle
 identity-reviewer.md
 identity-merger.md
 identity-maintenance.md
 identity-orchestrator.md
 identity-admin.md
+identity-scribe.md
 build.sh                le générateur
 ```
 
@@ -267,7 +269,7 @@ Une carte au tableau, assignée à `bot-admin`.
 Dépôt : Issam-Hadjal/NOM-DU-DEPOT
 
 Le dépôt vient d'être créé et ne contient qu'un README d'initialisation.
-Les quatre Apps y sont installées et les canaux du broker sont ouverts.
+Les cinq Apps y sont installées et les canaux du broker sont ouverts.
 
 Provisionne-le pour que le pipeline puisse y travailler.
 
