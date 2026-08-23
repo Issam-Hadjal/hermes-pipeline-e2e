@@ -13,3 +13,18 @@ peut pas faire.
 | `bot-merger` | Juge le cumul des features intégrées, approuve ou demande des modifications, fusionne `dev` vers `main` (merge), ferme les issues terminées et ouvre la pull request de resync `main` → `dev`. | Ne juge pas chaque feature individuellement — c'est le `bot-reviewer`. N'approuve pas et ne fusionne pas le resync — c'est le `bot-maintenance`. |
 | `bot-admin` | Provisionne le dépôt — branches protégées, workflows CI, règles de revue, paramètres de fusion. Seul à pouvoir écrire les règles de protection des branches. | N'intervient jamais dans un cycle de feature ; il est déclenché par un humain, jamais par le pipeline. Ne crée pas le dépôt, n'installe pas les Apps, ne déclare pas le dépôt dans l'allowlist — ces trois gestes restent humains. |
 | `bot-maintenance` | Resynchronise `dev` depuis `main` en ouvrant une pull request inverse, puis approuve et fusionne le resync (merge). | Ne pourra jamais approuver une pull request ouverte par le provisionneur — elle tourne sur l'identité du provisionneur, et GitHub y voit le même acteur. |
+
+## Réglages par rôle
+
+Chaque rôle tourne avec un modèle et un effort de raisonnement propres, fixés
+dans sa configuration. Le tableau ci-dessous les récapitule.
+
+| Nom | Modèle | Effort de raisonnement |
+| --- | --- | --- |
+| `bot-orchestrator` | `deepseek-v4-pro` | high |
+| `bot-scribe` | `deepseek-v4-flash` | low |
+| `bot-dev` | `deepseek-v4-pro` | high |
+| `bot-reviewer` | `deepseek-v4-pro` | high |
+| `bot-merger` | `deepseek-v4-pro` | medium |
+| `bot-admin` | `deepseek-v4-pro` | high |
+| `bot-maintenance` | `deepseek-v4-flash` | minimal |
