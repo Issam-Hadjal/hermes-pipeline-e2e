@@ -302,6 +302,51 @@ La branche distante a déjà disparu ; il ne reste que la copie locale.
 
 ---
 
+## Mode A sans issue — deux passes
+
+Le flux ci-dessus suppose qu'une issue existe déjà : tu l'écris à l'étape 2,
+et la chaîne juge contre elle. Mais on peut aussi fournir une simple demande
+en langage naturel, sans issue. L'orchestrateur ne peut pas écrire l'issue
+lui-même — il n'a aucun accès GitHub. Il matérialise donc l'issue, puis route
+le cycle, en **deux passes**.
+
+### Première passe — matérialiser l'issue
+
+L'orchestrateur crée **deux** cartes, chaînées :
+
+1. une carte pour `bot-scribe`, qui crée l'issue sur le dépôt — titre et
+   corps ;
+2. une carte pour lui-même (`bot-orchestrator`), **chaînée à la première**,
+   qui routera le cycle une fois le numéro d'issue connu.
+
+Le corps de l'issue est rédigé au même standard qu'à l'étape 2 : un contenu
+**vérifiable**, pas une intention. Le relecteur jugera le travail contre ces
+mots et rien d'autre ; un corps que deux implémentations différentes
+pourraient satisfaire n'est pas encore écrit.
+
+`bot-scribe` rapporte le numéro d'issue obtenu dans le résumé de sa carte. Ce
+résumé est le seul endroit où ce numéro existe pour l'orchestrateur, qui n'a
+aucun accès GitHub.
+
+### Seconde passe — router le cycle
+
+Une fois le numéro d'issue rapporté, l'orchestrateur route le cycle Mode A
+classique — `bot-dev` → `bot-reviewer` → `bot-merger` — contre ce numéro.
+
+### Ce que la séparation en deux passes garantit
+
+- **Aucune tâche du cycle n'est créée tant que le numéro d'issue n'existe
+  pas.** Une carte qui ne nomme aucune issue ne donne au relecteur aucun
+  référent.
+- **Le relecteur juge le travail contre l'issue.** Le corps de l'issue doit
+  donc être une exigence vérifiable — c'est lui le référent, pas la demande
+  initiale.
+- **Les trois tâches du cycle ne sont pas créées dans la même passe que la
+  matérialisation de l'issue.** Elles partent dans la seconde passe, une fois
+  le numéro connu, et jamais avant.
+
+---
+
 ## Ce que ce flux ne couvre pas encore
 
 **Le refus n'a jamais été exercé avec un auteur humain.** La personnalité du
