@@ -1,0 +1,50 @@
+# Intégration continue
+
+Le workflow `.github/workflows/ci.yml` s'exécute sur chaque pull request
+visant `main` ou `dev`, et sur chaque push vers `dev`. Il est composé de deux
+couches : un **socle** de vérifications globales, puis une **couche projet**
+qui exécute les scripts du dépôt quand ils existent.
+
+## Le socle
+
+Deux étapes, toujours exécutées, mettent la CI en échec dès qu'elles trouvent
+un marqueur :
+
+- **Socle — Marqueurs de conflit non résolus** : échoue si un marqueur de
+  conflit (`<<<<<<<` / `>>>>>>>`) traîne dans l'arbre.
+- **Socle — Marqueur de blocage explicite** : échoue si le marqueur
+  `FIXME_BLOCK_CI` apparaît dans le dépôt.
+
+## La couche projet
+
+Quatre étapes exécutent les scripts du projet. Chacune **tolère l'absence du
+script qui lui correspond** : sans ce script, l'étape est ignorée — elle ne met
+pas la CI en échec. Un dépôt sans `package.json`, ou qui n'a pas défini tel
+script, reste donc au vert.
+
+| Étape | Script attendu | En l'absence du script |
+| --- | --- | --- |
+| `Projet — Installation (npm)` | `package.json` | Étape ignorée — « Aucun package.json : rien à installer. » |
+| `Projet — Build` | `build` (dans `package.json`) | Étape ignorée — « Pas de script build (ou pas de package.json) : rien à construire. » |
+| `Projet — Tests` | `test` (dans `package.json`) | Étape ignorée — « Pas de script test (ou pas de package.json) : rien à tester. » |
+| `Projet — Lint` | `lint` (dans `package.json`) | Étape ignorée — « Pas de script lint (ou pas de package.json) : rien à vérifier. » |
+
+### Détail des quatre étapes
+
+**Installation (npm).** Si `package.json` existe, l'étape installe les
+dépendances : `npm ci` quand `package-lock.json` est présent, sinon
+`npm install`. Sans `package.json`, elle ne fait rien.
+
+**Build.** Si `package.json` définit un script `build`, l'étape lance
+`npm run build`. Sinon, elle ne fait rien.
+
+**Tests.** Si `package.json` définit un script `test`, l'étape lance
+`npm test`. Sinon, elle ne fait rien.
+
+**Lint.** Si `package.json` définit un script `lint`, l'étape lance
+`npm run lint`. Sinon, elle ne fait rien.
+
+La présence du script est vérifiée avec `jq` : l'étape teste la clé
+`.scripts.<nom>` de `package.json`. C'est ce test, et non le résultat du
+script, qui décide d'ignorer l'étape. Un script **présent mais qui échoue**
+fait bien échouer la CI ; c'est seulement l'absence du script qui est tolérée.
