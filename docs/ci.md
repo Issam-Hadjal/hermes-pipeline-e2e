@@ -5,15 +5,10 @@ visant `main` ou `dev`, et sur chaque push vers `dev`. Il est composé de deux
 couches : un **socle** de vérifications globales, puis une **couche projet**
 qui exécute les scripts du dépôt quand ils existent.
 
-## Le socle
-
-Deux étapes, toujours exécutées, mettent la CI en échec dès qu'elles trouvent
-un marqueur :
-
-- **Socle — Marqueurs de conflit non résolus** : échoue si un marqueur de
-  conflit (`<<<<<<<` / `>>>>>>>`) traîne dans l'arbre.
-- **Socle — Marqueur de blocage explicite** : échoue si le marqueur
-  `FIXME_BLOCK_CI` apparaît dans le dépôt.
+Le socle met la CI en échec dès qu'il trouve un marqueur de conflit non
+résolu ou le marqueur de blocage explicite. La couche projet, elle, tolère
+l'absence : ses étapes sont ignorées quand le script attendu n'existe pas,
+sans mettre la CI en échec.
 
 ## La couche projet
 
