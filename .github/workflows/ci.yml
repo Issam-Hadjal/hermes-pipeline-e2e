@@ -37,3 +37,44 @@ jobs:
             exit 1
           fi
           echo "Aucun marqueur de blocage trouvé."
+
+      - name: Projet — Installation (npm)
+        run: |
+          if [ ! -f package.json ]; then
+            echo "Aucun package.json : rien à installer."
+            exit 0
+          fi
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json présent : npm ci."
+            npm ci
+          else
+            echo "Pas de package-lock.json : npm install."
+            npm install
+          fi
+
+      - name: Projet — Build
+        run: |
+          if [ -f package.json ] && jq -e '.scripts.build' package.json >/dev/null 2>&1; then
+            echo "Script build présent : npm run build."
+            npm run build
+          else
+            echo "Pas de script build (ou pas de package.json) : rien à construire."
+          fi
+
+      - name: Projet — Tests
+        run: |
+          if [ -f package.json ] && jq -e '.scripts.test' package.json >/dev/null 2>&1; then
+            echo "Script test présent : npm test."
+            npm test
+          else
+            echo "Pas de script test (ou pas de package.json) : rien à tester."
+          fi
+
+      - name: Projet — Lint
+        run: |
+          if [ -f package.json ] && jq -e '.scripts.lint' package.json >/dev/null 2>&1; then
+            echo "Script lint présent : npm run lint."
+            npm run lint
+          else
+            echo "Pas de script lint (ou pas de package.json) : rien à vérifier."
+          fi
