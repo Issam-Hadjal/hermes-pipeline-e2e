@@ -43,3 +43,29 @@ La présence du script est vérifiée avec `jq` : l'étape teste la clé
 `.scripts.<nom>` de `package.json`. C'est ce test, et non le résultat du
 script, qui décide d'ignorer l'étape. Un script **présent mais qui échoue**
 fait bien échouer la CI ; c'est seulement l'absence du script qui est tolérée.
+
+## Version de Node
+
+La CI épingle la version de Node.js à **24**. L'épinglage est fait par l'action
+`actions/setup-node@v4` dans `.github/workflows/ci.yml`, à l'étape
+`Projet — Version de Node épinglée` :
+
+```yaml
+      - name: Projet — Version de Node épinglée
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+```
+
+La valeur est écrite littéralement (`node-version: '24'`), sans plage ni alias
+(`latest`, `lts/*`) : la version est donc exactement la même d'une exécution à
+l'autre.
+
+**Pourquoi une version fixe.** Épingler une version précise rend la CI
+reproductible : les scripts du projet (`npm install`, `npm test`, …) tournent
+avec la même version de Node en local et en CI, ce qui évite la dérive de
+version et les différences de comportement dues au runtime.
+
+> **Note.** L'étape d'épinglage est introduite par la PR #71 (`ci/epingler-node`)
+> vers `dev`. Tant que cette PR n'est pas fusionnée, `dev` ne la contient pas
+> encore : le runner utilise alors sa version de Node par défaut.
