@@ -38,6 +38,11 @@ jobs:
           fi
           echo "Aucun marqueur de blocage trouvé."
 
+      - name: Projet — Version de Node épinglée
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Projet — Installation (npm)
         run: |
           if [ ! -f package.json ]; then
