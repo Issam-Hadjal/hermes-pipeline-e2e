@@ -65,7 +65,3 @@ l'autre.
 reproductible : les scripts du projet (`npm install`, `npm test`, …) tournent
 avec la même version de Node en local et en CI, ce qui évite la dérive de
 version et les différences de comportement dues au runtime.
-
-> **Note.** L'étape d'épinglage est introduite par la PR #71 (`ci/epingler-node`)
-> vers `dev`. Tant que cette PR n'est pas fusionnée, `dev` ne la contient pas
-> encore : le runner utilise alors sa version de Node par défaut.
