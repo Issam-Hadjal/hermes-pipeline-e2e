@@ -7,7 +7,7 @@ Dépôt de bout en bout pour le pipeline multi-agents Hermes.
 Le pipeline s'appuie sur huit rôles, chacun avec une responsabilité unique :
 
 1. `bot-orchestrator` — Décompose une demande en tâches et route chacune vers le rôle spécialiste qui en est propriétaire.
-2. `bot-specifier` — Précise et complète le corps des tâches vagues qui arrivent en triage.
+2. `lego-bot` — Point d'entrée conversationnel : transforme une demande en langage naturel en une carte destinée à `bot-orchestrator`, et rien d'autre.
 3. `bot-scribe` — Matérialise les demandes en issues GitHub rédigées et prêtes à être travaillées.
 4. `bot-dev` — Implémente l'issue, puis ouvre la pull request contre `dev`.
 5. `bot-reviewer` — Juge la pull request fonctionnelle contre son issue, vérifie la CI, puis approuve et fusionne dans `dev`.
