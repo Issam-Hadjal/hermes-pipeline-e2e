@@ -1,12 +1,13 @@
 # Les rôles du pipeline
 
-Le pipeline s'appuie sur sept rôles, chacun avec une responsabilité unique.
+Le pipeline s'appuie sur huit rôles, chacun avec une responsabilité unique.
 Le tableau ci-dessous liste, pour chaque rôle, ce qu'il fait et ce qu'il ne
 peut pas faire.
 
 | Nom | Ce qu'il fait | Ce qu'il ne peut pas faire |
 | --- | --- | --- |
 | `bot-orchestrator` | Décompose une demande utilisateur en cartes et les route vers les bons spécialistes ; décide le découpage. | N'a aucun accès GitHub — ne peut pas écrire d'issue lui-même. Privé de terminal, de fichiers et d'exécution de code. |
+| `lego-bot` | Point d'entrée conversationnel : transforme une demande en langage naturel en une carte destinée à `bot-orchestrator`. | Ne fait rien d'autre — ne décompose pas la demande, ne route pas les tâches, n'a aucun accès GitHub. |
 | `bot-scribe` | Transcrit le découpage de l'orchestrateur en issues GitHub (issue parente, puis filles, puis rattachement) et rapporte les numéros obtenus. | Ne juge pas le découpage. N'écrit pas de code, n'ouvre pas de pull request, ne relit pas, ne fusionne pas, ne ferme pas d'issue. |
 | `bot-dev` | Implémente la feature et ouvre une pull request vers `dev`. | Ne doit jamais écrire l'issue qu'il implémentera. |
 | `bot-reviewer` | Juge la feature contre son issue, approuve ou demande des modifications, fusionne vers `dev` (squash), puis ouvre la pull request d'intégration `dev` → `main`. | Ne juge pas contre la description de pull request mais contre l'issue. Ne fusionne pas vers `main` et ne ferme pas d'issue — c'est le `bot-merger`. |
