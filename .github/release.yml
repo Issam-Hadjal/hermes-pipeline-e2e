@@ -1,0 +1,26 @@
+# Notes de version générées par GitHub, classées par label type: des pull requests de
+# feature. Les intégrations et les resynchronisations ne livrent rien de neuf : exclues.
+# Publier une version reste un geste humain, car une publication peut déclencher un
+# déploiement.
+changelog:
+  exclude:
+    labels:
+      - "stage:integration"
+      - "stage:resync"
+  categories:
+    - title: "Nouveautés"
+      labels: ["type:feat"]
+    - title: "Corrections"
+      labels: ["type:fix"]
+    - title: "Documentation"
+      labels: ["type:docs"]
+    - title: "Réorganisation du code"
+      labels: ["type:refactor"]
+    - title: "Tests"
+      labels: ["type:test"]
+    - title: "Intégration continue"
+      labels: ["type:ci"]
+    - title: "Entretien"
+      labels: ["type:chore"]
+    - title: "Autres changements"
+      labels: ["*"]

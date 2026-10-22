@@ -1,8 +1,13 @@
-name: Étiquetage par porte
+# Étiquetage des pull requests, sur deux axes qui ne se mélangent jamais :
+#   stage: la porte franchie, lue sur la paire de branches ;
+#   type:  la nature du changement, lue sur le type du titre.
+# Les labels sont posés ici et nulle part ailleurs : aucun rôle n'étiquette. Ce workflow
+# ne fait jamais échouer une pull request : il reste à part de la CI.
+name: Étiquetage par porte et par type
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, edited]
 
 permissions:
   pull-requests: write
@@ -10,43 +15,58 @@ permissions:
 jobs:
   label:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Déterminer et appliquer le label d'étape
+      - name: Poser le label de porte et le label de type
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          TETE: ${{ github.event.pull_request.head.ref }}
+          TITRE: ${{ github.event.pull_request.title }}
         run: |
-          base="${{ github.event.pull_request.base.ref }}"
-          head="${{ github.event.pull_request.head.ref }}"
-          pr="${{ github.event.pull_request.number }}"
+          # Branches et titre arrivent par l'environnement, jamais par une expression
+          # recopiée dans le script : un nom de branche ou un titre ne s'exécute pas.
+          porte=""
+          if [ "$BASE" = "dev" ]; then
+            if [ "$TETE" = "main" ]; then porte="stage:resync"; else porte="stage:feature"; fi
+          elif [ "$BASE" = "main" ] && [ "$TETE" = "dev" ]; then
+            porte="stage:integration"
+          fi
+          type=$(printf '%s\n' "$TITRE" | sed -nE '1s/^(feat|fix|docs|refactor|test|ci|chore)(\([a-z0-9][a-z0-9._\/-]*\))?!?: .*/\1/p')
+          voulus=""
+          [ -n "$porte" ] && voulus="$porte"
+          [ -n "$type" ] && voulus="$voulus type:$type"
+          [ -z "$porte" ] && echo "Aucune porte reconnue pour $TETE -> $BASE : pas de label de porte."
+          [ -z "$type" ] && echo "Titre sans type reconnu : pas de label de type."
 
-          label=""
-          if [ "$base" = "dev" ]; then
-            if [ "$head" = "main" ]; then
-              label="stage:resync"
+          if ! actuels=$(gh api "repos/$GH_REPO/issues/$PR/labels" --jq '.[].name'); then
+            echo "::warning::Labels de la pull request #$PR illisibles : rien n'est changé."
+            exit 0
+          fi
+          # Retirer ce qui n'est plus juste, sur ces deux axes seulement.
+          printf '%s\n' "$actuels" | while IFS= read -r l; do
+            case "$l" in
+              stage:*|type:*)
+                case " $voulus " in
+                  *" $l "*) ;;
+                  *)
+                    if gh api -X DELETE "repos/$GH_REPO/issues/$PR/labels/$(printf '%s' "$l" | jq -sRr @uri)" >/dev/null; then
+                      echo "Label '$l' retiré de la pull request #$PR."
+                    else
+                      echo "::warning::Label '$l' non retiré de la pull request #$PR."
+                    fi ;;
+                esac ;;
+            esac
+          done
+          for l in $voulus; do
+            if printf '%s\n' "$actuels" | grep -qxF "$l"; then
+              echo "Label '$l' déjà présent sur la pull request #$PR."
+            elif gh api -X POST "repos/$GH_REPO/issues/$PR/labels" -f "labels[]=$l" >/dev/null; then
+              echo "Label '$l' posé sur la pull request #$PR."
             else
-              # Complément : toute branche qui vise dev sans être main
-              # est une entrée de contenu, quel que soit son préfixe
-              # (feature/, fix/, chore/, docs/, ci/, ...).
-              label="stage:feature"
+              echo "::warning::Label '$l' non posé sur la pull request #$PR : existe-t-il dans le dépôt ?"
             fi
-          elif [ "$base" = "main" ] && [ "$head" = "dev" ]; then
-            label="stage:integration"
-          fi
-
-          if [ -z "$label" ]; then
-            echo "Aucune porte reconnue pour $head -> $base ; aucun label appliqué."
-            exit 0
-          fi
-
-          # Tolère un label déjà présent (PR rouverte).
-          if gh pr view "$pr" --json labels --jq '.labels[].name' | grep -qx "$label"; then
-            echo "Label '$label' déjà présent sur la PR #$pr."
-            exit 0
-          fi
-
-          if gh pr edit "$pr" --add-label "$label"; then
-            echo "Label '$label' appliqué à la PR #$pr."
-          else
-            echo "::warning::Impossible d'appliquer le label '$label' à la PR #$pr."
-          fi
+          done
+          exit 0

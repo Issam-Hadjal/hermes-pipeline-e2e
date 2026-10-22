@@ -1,0 +1,214 @@
+# Suivi des issues : réécrit, dans le corps de chaque issue, le seul bloc compris entre
+# <!-- suivi:debut --> et <!-- suivi:fin --> : ses sous-issues, ses pull requests et
+# leur état. Le reste du corps est l'exigence que juge le relecteur : jamais touché.
+#
+# Rattachées à une issue N : la pull request de feature dont la branche porte N ou dont
+# le corps a une ligne « Refs #N », l'intégration qui porte « Closes #N », et la
+# resynchronisation qui suit cette intégration.
+#
+# Rattacher une sous-issue ne déclenche aucun événement : chaque passage réécrit donc
+# toutes les issues ouvertes et celles des deux derniers jours, et un passage horaire
+# rattrape le reste. Un bloc déjà juste n'est pas réécrit.
+name: Suivi des issues
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  pull_request:
+    types: [opened, edited, reopened, closed]
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: suivi-des-issues
+  cancel-in-progress: false
+
+jobs:
+  suivi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Réécrire le bloc Suivi des issues
+        shell: python
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          import json
+          import os
+          import re
+          import sys
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
+
+          API = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+          DEPOT = os.environ.get("GITHUB_REPOSITORY", "")
+          DEBUT, FIN = "<!-- suivi:debut -->", "<!-- suivi:fin -->"
+          TYPES = ("feat", "fix", "docs", "refactor", "test", "ci", "chore")
+          BRANCHE = re.compile(r"^(?:" + "|".join(TYPES) + r")/(?P<n>[1-9][0-9]*)-")
+          REFS = re.compile(r"^(?:[-*+][ \t]+)?Refs #([0-9]+)\b", re.M)
+          CLOSES = re.compile(r"^(?:[-*+][ \t]+)?Closes #([0-9]+)\b", re.M)
+          CITE = re.compile(r"#([0-9]+)\b")
+          GENRES = {"feature": "feature", "integration": "intégration", "resync": "resynchronisation"}
+
+
+          def appel(methode, chemin, corps=None):
+              donnees = None if corps is None else json.dumps(corps).encode("utf-8")
+              requete = urllib.request.Request(API + chemin, data=donnees, method=methode)
+              requete.add_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
+              requete.add_header("Accept", "application/vnd.github+json")
+              requete.add_header("X-GitHub-Api-Version", "2022-11-28")
+              if donnees is not None:
+                  requete.add_header("Content-Type", "application/json")
+              with urllib.request.urlopen(requete, timeout=30) as r:
+                  brut = r.read()
+              return json.loads(brut) if brut else None
+
+
+          def pages(chemin, maximum):
+              tout = []
+              for page in range(1, maximum + 1):
+                  lot = appel("GET", f"{chemin}{'&' if '?' in chemin else '?'}per_page=100&page={page}")
+                  tout += lot
+                  if len(lot) < 100:
+                      break
+              return tout
+
+
+          def ou_rien(chemin):
+              """La ressource, ou None si elle n'existe pas (une issue sans mère, par exemple)."""
+              try:
+                  return appel("GET", chemin)
+              except urllib.error.HTTPError as ex:
+                  if ex.code in (404, 410):
+                      return None
+                  raise
+
+
+          def porte(base, tete):
+              if base == "dev":
+                  return "resync" if tete == "main" else "feature"
+              if base == "main" and tete == "dev":
+                  return "integration"
+              return None
+
+
+          def propre(texte):
+              """Un titre recopié ne doit ni casser le Markdown ni fermer le bloc."""
+              return re.sub(r"\s+", " ", (texte or "").replace("<", "&lt;")).strip()
+
+
+          def jour(horodatage):
+              return datetime.strptime(horodatage, "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
+
+
+          def etat_pr(p):
+              if p.get("merged_at"):
+                  return f"fusionnée dans {p['base']['ref']} le {jour(p['merged_at'])}"
+              if p.get("state") == "closed":
+                  return "fermée sans fusion"
+              return "brouillon" if p.get("draft") else "ouverte"
+
+
+          def rattacher(prs):
+              """Numéro d'issue -> {numéro de pull request: pull request}."""
+              par_issue, integrations = {}, {}
+              for p in prs:
+                  genre = porte(p["base"]["ref"], p["head"]["ref"])
+                  corps = (p.get("body") or "").replace("\r\n", "\n")
+                  numeros = set()
+                  if genre == "feature":
+                      m = BRANCHE.match(p["head"]["ref"])
+                      if m:
+                          numeros.add(m.group("n"))
+                      numeros |= set(REFS.findall(corps))
+                  elif genre == "integration":
+                      numeros = set(CLOSES.findall(corps))
+                      integrations[str(p["number"])] = numeros
+                  for n in numeros:
+                      par_issue.setdefault(n, {})[p["number"]] = p
+              for p in prs:
+                  if porte(p["base"]["ref"], p["head"]["ref"]) == "resync":
+                      for cite in CITE.findall(p.get("body") or ""):
+                          for n in integrations.get(cite, ()):
+                              par_issue.setdefault(n, {})[p["number"]] = p
+              return par_issue
+
+
+          def bloc(sous_issues, prs):
+              lignes = []
+              if sous_issues:
+                  fermees = sum(1 for s in sous_issues if s.get("state") == "closed")
+                  lignes.append(f"**Sous-issues** : {fermees} fermée(s) sur {len(sous_issues)}")
+                  for s in sorted(sous_issues, key=lambda s: s["number"]):
+                      etat = "fermée" if s.get("state") == "closed" else "ouverte"
+                      lignes.append(f"- #{s['number']} {propre(s.get('title'))} — {etat}")
+              if prs:
+                  if lignes:
+                      lignes.append("")
+                  lignes.append("**Pull requests**")
+                  for numero in sorted(prs):
+                      p = prs[numero]
+                      genre = GENRES.get(porte(p["base"]["ref"], p["head"]["ref"]), "autre")
+                      lignes.append(f"- #{numero} {genre} « {propre(p.get('title'))} » — {etat_pr(p)}")
+              return "\n".join(lignes) or "_Aucune sous-issue ni pull request pour l'instant._"
+
+
+          def remplacer(corps, contenu):
+              """Le corps avec le bloc réécrit, ou None s'il n'a pas de repères."""
+              i = corps.find(DEBUT)
+              j = corps.find(FIN, i + len(DEBUT)) if i >= 0 else -1
+              if i < 0 or j < 0:
+                  return None
+              fin_de_ligne = "\r\n" if "\r\n" in corps else "\n"
+              return corps[:i + len(DEBUT)] + fin_de_ligne + contenu.replace("\n", fin_de_ligne) + fin_de_ligne + corps[j:]
+
+
+          def principal():
+              nom = os.environ.get("GITHUB_EVENT_NAME", "")
+              evenement = json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8"))
+              par_issue = rattacher(pages(f"/repos/{DEPOT}/pulls?state=all", 10))
+              # Les issues ouvertes, et celles qui ont bougé depuis deux jours : une issue fermée
+              # à la fusion de son intégration reçoit encore l'état final de ses pull requests.
+              depuis = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+              cibles = {str(i["number"]) for etat in ("state=open", f"state=all&since={depuis}")
+                        for i in pages(f"/repos/{DEPOT}/issues?{etat}", 10) if not i.get("pull_request")}
+              touchees = set()
+              if nom == "issues":
+                  touchees.add(str(evenement["issue"]["number"]))
+              elif nom == "pull_request":
+                  numero = evenement["pull_request"]["number"]
+                  touchees = {n for n, prs in par_issue.items() if numero in prs}
+              for n in list(touchees):
+                  mere = ou_rien(f"/repos/{DEPOT}/issues/{n}/parent")
+                  if mere:
+                      touchees.add(str(mere["number"]))
+              erreurs = ecrites = 0
+              for n in sorted(cibles | touchees, key=int):
+                  try:
+                      issue = ou_rien(f"/repos/{DEPOT}/issues/{n}")
+                      if issue is None or issue.get("pull_request"):
+                          continue
+                      sous_issues = pages(f"/repos/{DEPOT}/issues/{n}/sub_issues", 3)
+                      corps = issue.get("body") or ""
+                      nouveau = remplacer(corps, bloc(sous_issues, par_issue.get(n, {})))
+                      if nouveau is None:
+                          print(f"#{n} : pas de repères de Suivi, rien à écrire")
+                      elif nouveau != corps:
+                          appel("PATCH", f"/repos/{DEPOT}/issues/{n}", {"body": nouveau})
+                          ecrites += 1
+                          print(f"#{n} : Suivi réécrit")
+                  except Exception as ex:
+                      erreurs += 1
+                      print(f"::error title=Suivi::#{n} : {ex}")
+              print(f"{len(cibles | touchees)} issue(s) examinée(s), {ecrites} réécrite(s), {erreurs} erreur(s)")
+              return 1 if erreurs else 0
+
+
+          if __name__ == "__main__":
+              sys.exit(principal())
