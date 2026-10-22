@@ -1,0 +1,77 @@
+name: "Issue"
+description: "Une exigence vérifiable, aux sections du pipeline : le relecteur jugera le travail contre elle."
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Titre** : un verbe à l'infinitif puis l'objet, en français, 72 caractères au plus, sans point final ni numéro. Exemple : `Documenter le rôle bot-dev`.
+
+        Une issue énonce un contenu vérifiable depuis le dépôt, jamais une intention : si deux implémentations différentes peuvent satisfaire ce qui suit, elle n'est pas encore écrite. Une section sans contenu dit « aucun » au lieu de disparaître.
+  - type: textarea
+    id: objectif
+    attributes:
+      label: "Objectif"
+      description: "Une phrase : ce qui sera vrai une fois l'issue livrée."
+    validations:
+      required: true
+  - type: textarea
+    id: pourquoi
+    attributes:
+      label: "Pourquoi"
+      description: "Le problème, pour qui, et pourquoi maintenant."
+    validations:
+      required: true
+  - type: textarea
+    id: exigences
+    attributes:
+      label: "Exigences"
+      description: "Ce qui doit exister à la fin : fichiers, comportements, valeurs exactes."
+    validations:
+      required: true
+  - type: textarea
+    id: criteres
+    attributes:
+      label: "Critères d'acceptation"
+      description: "Une liste numérotée ; chaque critère se vérifie depuis le dépôt, et le relecteur les citera un par un."
+      value: "1."
+    validations:
+      required: true
+  - type: textarea
+    id: comment
+    attributes:
+      label: "Comment"
+      description: "Les décisions déjà prises et les contraintes, toutes exigées ; « libre » s'il n'y en a pas."
+      value: "libre"
+    validations:
+      required: true
+  - type: textarea
+    id: hors-perimetre
+    attributes:
+      label: "Hors périmètre"
+      description: "Ce qui ne doit pas être fait."
+      value: "aucun"
+    validations:
+      required: true
+  - type: textarea
+    id: consequences
+    attributes:
+      label: "Conséquences"
+      description: "Impacts, risques, migration éventuelle ; « aucune connue » sinon."
+      value: "aucune connue"
+    validations:
+      required: true
+  - type: textarea
+    id: liens
+    attributes:
+      label: "Liens"
+      description: "Issue mère, issues bloquantes, documentation de référence."
+      value: "aucun"
+  - type: textarea
+    id: suivi
+    attributes:
+      label: "Suivi"
+      description: "Ne pas modifier : un workflow réécrit ce bloc avec les sous-issues et les pull requests."
+      value: |
+        <!-- suivi:debut -->
+        _Rempli automatiquement._
+        <!-- suivi:fin -->
