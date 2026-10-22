@@ -1,6 +1,8 @@
 # Suivi des issues : réécrit, dans le corps de chaque issue, le seul bloc compris entre
 # <!-- suivi:debut --> et <!-- suivi:fin --> : ses sous-issues, ses pull requests et
 # leur état. Le reste du corps est l'exigence que juge le relecteur : jamais touché.
+# Un repère ne compte que seul sur sa ligne, hors d'un bloc de code ; s'il y a plusieurs
+# blocs, c'est le dernier, celui de la section Suivi, qui est réécrit.
 #
 # Rattachées à une issue N : la pull request de feature dont la branche porte N ou dont
 # le corps a une ligne « Refs #N », l'intégration qui porte « Closes #N », et la
@@ -159,14 +161,31 @@ jobs:
               return "\n".join(lignes) or "_Aucune sous-issue ni pull request pour l'instant._"
 
 
+          def reperes(corps):
+              """Le dernier bloc balisé : (fin de la ligne du repère de début, début de la ligne
+              du repère de fin), ou None. Un repère ne compte que seul sur sa ligne et hors d'un
+              bloc de code : une issue qui cite les repères dans une phrase ne perd pas sa
+              phrase (constaté sur #144 le 22/10/2026, avant ce correctif)."""
+              position, dans_code, debut, bloc = 0, False, None, None
+              for ligne in corps.splitlines(keepends=True):
+                  nue = ligne.strip()
+                  if nue.startswith("```") or nue.startswith("~~~"):
+                      dans_code = not dans_code
+                  elif not dans_code and nue == DEBUT:
+                      debut = position + len(ligne.rstrip("\r\n"))
+                  elif not dans_code and nue == FIN and debut is not None:
+                      bloc, debut = (debut, position), None
+                  position += len(ligne)
+              return bloc
+
+
           def remplacer(corps, contenu):
               """Le corps avec le bloc réécrit, ou None s'il n'a pas de repères."""
-              i = corps.find(DEBUT)
-              j = corps.find(FIN, i + len(DEBUT)) if i >= 0 else -1
-              if i < 0 or j < 0:
+              bloc = reperes(corps)
+              if bloc is None:
                   return None
               fin_de_ligne = "\r\n" if "\r\n" in corps else "\n"
-              return corps[:i + len(DEBUT)] + fin_de_ligne + contenu.replace("\n", fin_de_ligne) + fin_de_ligne + corps[j:]
+              return corps[:bloc[0]] + fin_de_ligne + contenu.replace("\n", fin_de_ligne) + fin_de_ligne + corps[bloc[1]:]
 
 
           def principal():
