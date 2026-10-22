@@ -1,0 +1,3 @@
+# Une issue écrite à la main passe par le formulaire, aux sections du pipeline. Les bots
+# écrivent par l'API, que ce réglage ne concerne pas.
+blank_issues_enabled: false

@@ -1,0 +1,291 @@
+# Contrôle des conventions du pipeline : titre, branche, corps et commits de chaque
+# pull request, selon sa porte (feature vers dev, intégration dev vers main,
+# resynchronisation main vers dev). Exigé par les rulesets sous le nom « conventions ».
+#
+# Toute la logique vit dans ce fichier, jamais dans un script à côté : seule la
+# permission « workflows » protège .github/workflows/, si bien qu'un contrôle dont les
+# règles seraient ailleurs pourrait être réécrit par la pull request qu'il juge.
+# L'outil provisionner de bot-admin lit les règles ici même, entre les deux repères.
+name: Conventions
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: conventions-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  conventions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Vérifier titre, branche, corps et commits
+        shell: python
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # --- regles des conventions : debut ---
+          # Fonctions pures, sans reseau : ce workflow les applique, et provisionner les
+          # reprend pour verifier la pull request de bot-admin avant de l'ouvrir.
+          import re
+
+          TYPES = ("feat", "fix", "docs", "refactor", "test", "ci", "chore")
+          BRANCHE = re.compile(r"^(?:" + "|".join(TYPES) + r")/(?P<n>[1-9][0-9]*)-(?P<objet>[a-z0-9]+(?:-[a-z0-9]+)*)$")
+          TITRE = re.compile(r"^(?:" + "|".join(TYPES) + r")(?:\([a-z0-9][a-z0-9._/-]*\))?(?P<rupture>!)?: (?P<resume>\S.*)$")
+          TITRE_INTEGRATION = re.compile(r"^chore\(integration\): livrer \S.* dans main$")
+          TITRE_RESYNC = "chore(resync): resynchroniser dev depuis main"
+          SECTIONS = {
+              "feature": ["Issue", "Objectif", "Changements", "Vérification",
+                          "Conséquences et risques", "Hors périmètre", "Carte"],
+              "integration": ["Livré", "Synthèse", "Risques"],
+              "resync": ["Suit", "Écart"],
+          }
+          CLOSES = re.compile(r"^(?:[-*+][ \t]+)?Closes #([0-9]+)\b", re.M)
+          FERMETURE = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)[ \t]*:?[ \t]*#[0-9]+\b", re.I)
+
+
+          def porte(base, tete):
+              """feature, integration, resync, interdite, ou None hors des portes du pipeline."""
+              if base == "dev":
+                  return "resync" if tete == "main" else "feature"
+              if base == "main":
+                  return "integration" if tete == "dev" else "interdite"
+              return None
+
+
+          def norm(s):
+              return re.sub(r"[ \t\u00a0\u202f]+", " ", (s or "").replace("\u2019", "'")).strip()
+
+
+          def sans_code(corps):
+              """Le corps sans commentaires HTML ni blocs de code : un titre cite n'est pas une section."""
+              corps = re.sub(r"<!--.*?-->", "", (corps or "").replace("\r\n", "\n"), flags=re.S)
+              return re.sub(r"^```.*?^```[ \t]*$", "", corps, flags=re.M | re.S)
+
+
+          def titres(corps):
+              return [norm(m.group(1)) for m in re.finditer(r"^#{2,3}[ \t]+(.+?)[ \t]*$", corps, re.M)]
+
+
+          def section(corps, nom):
+              m = re.search(r"^#{2,3}[ \t]+" + re.escape(nom) + r"[ \t]*\n(.*?)(?=^#{1,3}[ \t]|\Z)", corps, re.M | re.S)
+              return m.group(1) if m else None
+
+
+          def ecarts_sections(corps, attendues):
+              vues = titres(corps)
+              manque = [s for s in attendues if s not in vues]
+              if manque:
+                  return ["sections absentes : " + ", ".join(manque) + " (vues : " + (", ".join(vues) or "aucune") + ")"]
+              positions = [vues.index(s) for s in attendues]
+              if positions != sorted(positions):
+                  return ["sections dans le désordre : " + ", ".join(vues) + " (attendu : " + ", ".join(attendues) + ")"]
+              return []
+
+
+          def ecarts_titre(titre, sans_numero=True):
+              m = TITRE.match(titre or "")
+              if not m:
+                  return ["hors format « type(portée): résumé », type parmi " + ", ".join(TYPES)]
+              e = []
+              if len(titre) > 72:
+                  e.append(f"{len(titre)} caractères, 72 au plus")
+              if titre.endswith("."):
+                  e.append("point final")
+              if m.group("resume")[:1].isupper():
+                  e.append("résumé en majuscule : l'infinitif s'écrit en minuscule")
+              if sans_numero and re.search(r"#[0-9]", titre):
+                  e.append("numéro dans le titre : la fusion ajoute celui de la pull request")
+              return e
+
+
+          def ecarts_message(message, numero):
+              """Les règles de git-publish : un commit publié par lui passe toujours ici."""
+              message = (message or "").replace("\r\n", "\n")
+              lignes = message.rstrip("\n").split("\n")
+              e = ecarts_titre(lignes[0], sans_numero=False)
+              m = TITRE.match(lignes[0])
+              if m and m.group("rupture") and not re.search(r"^BREAKING CHANGE: \S", message, re.M):
+                  e.append("« ! » sans pied « BREAKING CHANGE: »")
+              if len(lignes) > 1 and lignes[1].strip():
+                  e.append("pas de ligne vide après le titre")
+              if not re.search(r"^Refs #" + numero + r"\b", message, re.M):
+                  e.append(f"pas de ligne « Refs #{numero} »")
+              return e
+
+
+          def verifier(pr, commits=None, issue=None):
+              """pr : {title, body, base, head}. commits : [{sha, message, parents}], ou None s'ils
+              n'ont pas pu être lus. issue : fonction numéro -> "issue", "pull_request", "absente",
+              ou None si illisible ; None pour ne pas vérifier. Rend (porte, écarts)."""
+              titre, base, tete = pr.get("title") or "", pr.get("base") or "", pr.get("head") or ""
+              corps = sans_code(pr.get("body"))
+              quelle = porte(base, tete)
+              e = []
+              if quelle is None:
+                  return quelle, e
+              if quelle == "interdite":
+                  return quelle, [f"branche {tete} vers main : seule dev s'intègre dans main"]
+              if quelle == "integration":
+                  if not TITRE_INTEGRATION.match(titre):
+                      e.append("titre : attendu « chore(integration): livrer <objet> dans main »")
+                  if len(titre) > 72:
+                      e.append(f"titre : {len(titre)} caractères, 72 au plus")
+                  e += ["corps : " + x for x in ecarts_sections(corps, SECTIONS["integration"])]
+                  if not CLOSES.search(corps):
+                      e.append("corps : aucune ligne « Closes #N » pour les issues livrées")
+                  return quelle, e
+              if quelle == "resync":
+                  if titre != TITRE_RESYNC:
+                      e.append(f"titre : attendu « {TITRE_RESYNC} »")
+                  e += ["corps : " + x for x in ecarts_sections(corps, SECTIONS["resync"])]
+                  suit = section(corps, "Suit")
+                  if suit is not None and not re.search(r"#[0-9]+", suit):
+                      e.append("corps : la section Suit ne cite pas la pull request d'intégration")
+                  return quelle, e
+              e += ["titre : " + x for x in ecarts_titre(titre)]
+              m = BRANCHE.match(tete)
+              numero = None
+              if not m:
+                  e.append(f"branche « {tete} » : attendu <type>/<N>-<objet-court>, type parmi {', '.join(TYPES)}")
+              else:
+                  numero = m.group("n")
+                  if len(m.group("objet")) > 30:
+                      e.append("branche : objet de plus de 30 caractères")
+              e += ["corps : " + x for x in ecarts_sections(corps, SECTIONS["feature"])]
+              if numero:
+                  if not re.search(r"^(?:[-*+][ \t]+)?Refs #" + numero + r"\b", corps, re.M):
+                      e.append(f"corps : pas de ligne « Refs #{numero} », le numéro de la branche")
+                  nature = issue(numero) if issue else "issue"
+                  if nature == "absente":
+                      e.append(f"issue #{numero} introuvable")
+                  elif nature == "pull_request":
+                      e.append(f"#{numero} est une pull request, pas une issue")
+                  elif nature is None:
+                      e.append(f"issue #{numero} illisible : vérification impossible")
+              if FERMETURE.search(corps):
+                  e.append("corps : mot de fermeture devant un numéro ; vers dev, rien ne se ferme : « Refs #N »")
+              if commits is None:
+                  e.append("commits illisibles : vérification impossible")
+              elif numero:
+                  for c in commits:
+                      if len(c.get("parents") or []) > 1:
+                          continue  # fusion de dev dans la branche, pour la mettre à jour
+                      message = c.get("message") or ""
+                      sujet = message.split("\n")[0][:60]
+                      for x in ecarts_message(message, numero):
+                          e.append(f"commit {(c.get('sha') or '')[:7]} « {sujet} » : {x}")
+              return quelle, e
+          # --- regles des conventions : fin ---
+
+
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          API = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+          DEPOT = os.environ.get("GITHUB_REPOSITORY", "")
+          MARQUE = "<!-- conventions:rapport -->"
+          NOMS = {"feature": "feature vers dev", "integration": "intégration dev vers main",
+                  "resync": "resynchronisation main vers dev", "interdite": "vers main"}
+
+
+          def appel(methode, chemin, corps=None):
+              donnees = None if corps is None else json.dumps(corps).encode("utf-8")
+              requete = urllib.request.Request(API + chemin, data=donnees, method=methode)
+              requete.add_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
+              requete.add_header("Accept", "application/vnd.github+json")
+              requete.add_header("X-GitHub-Api-Version", "2022-11-28")
+              if donnees is not None:
+                  requete.add_header("Content-Type", "application/json")
+              with urllib.request.urlopen(requete, timeout=30) as r:
+                  brut = r.read()
+              return json.loads(brut) if brut else None
+
+
+          def pages(chemin, maximum):
+              tout = []
+              for page in range(1, maximum + 1):
+                  lot = appel("GET", f"{chemin}{'&' if '?' in chemin else '?'}per_page=100&page={page}")
+                  tout += lot
+                  if len(lot) < 100:
+                      break
+              return tout
+
+
+          def nature_issue(numero):
+              try:
+                  i = appel("GET", f"/repos/{DEPOT}/issues/{numero}")
+              except urllib.error.HTTPError as ex:
+                  return "absente" if ex.code in (404, 410) else None
+              except Exception:
+                  return None
+              return "pull_request" if i.get("pull_request") else "issue"
+
+
+          def commande(texte):
+              return texte.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+          def commenter(numero, ecarts, quelle):
+              """Un seul commentaire par pull request, réécrit à chaque passage : c'est là
+              que les rôles lisent ce qu'il faut corriger. Créé au premier échec seulement."""
+              existants = [c for c in pages(f"/repos/{DEPOT}/issues/{numero}/comments", 10)
+                           if (c.get("body") or "").startswith(MARQUE)
+                           and (c.get("user") or {}).get("login") == "github-actions[bot]"]
+              if ecarts:
+                  corps = (f"{MARQUE}\n## Contrôle des conventions\n\nNon conforme, porte {NOMS.get(quelle, quelle)} :\n\n"
+                           + "\n".join(f"- {x}" for x in ecarts)
+                           + "\n\nLe contrôle repasse à chaque modification du titre, du corps ou des commits.")
+              elif existants:
+                  corps = f"{MARQUE}\n## Contrôle des conventions\n\nConforme, porte {NOMS.get(quelle, quelle)}."
+              else:
+                  return
+              if existants:
+                  appel("PATCH", f"/repos/{DEPOT}/issues/comments/{existants[0]['id']}", {"body": corps})
+              else:
+                  appel("POST", f"/repos/{DEPOT}/issues/{numero}/comments", {"body": corps})
+
+
+          def principal():
+              evenement = json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8"))
+              numero = evenement["pull_request"]["number"]
+              p = appel("GET", f"/repos/{DEPOT}/pulls/{numero}")
+              pr = {"title": p.get("title") or "", "body": p.get("body") or "",
+                    "base": p["base"]["ref"], "head": p["head"]["ref"]}
+              commits = None
+              if porte(pr["base"], pr["head"]) == "feature":
+                  try:
+                      commits = [{"sha": c["sha"], "message": c["commit"]["message"], "parents": c.get("parents") or []}
+                                 for c in pages(f"/repos/{DEPOT}/pulls/{numero}/commits", 3)]
+                  except Exception as ex:
+                      print(f"::warning::commits illisibles : {commande(str(ex))}")
+              quelle, ecarts = verifier(pr, commits, nature_issue)
+              if quelle is None:
+                  print(f"Pull request #{numero} {pr['head']} -> {pr['base']} : hors des portes du pipeline, rien à contrôler.")
+                  return 0
+              print(f"Pull request #{numero}, porte {NOMS[quelle]} : " + ("conforme." if not ecarts else f"{len(ecarts)} écart(s)."))
+              for x in ecarts:
+                  print(f"::error title=Conventions::{commande(x)}")
+              resume = os.environ.get("GITHUB_STEP_SUMMARY")
+              if resume:
+                  with open(resume, "a", encoding="utf-8") as f:
+                      f.write(f"## Contrôle des conventions\n\nPorte {NOMS[quelle]} : "
+                              + ("conforme.\n" if not ecarts else "non conforme.\n\n" + "\n".join(f"- {x}" for x in ecarts) + "\n"))
+              try:
+                  commenter(numero, ecarts, quelle)
+              except Exception as ex:
+                  print(f"::warning::commentaire non écrit : {commande(str(ex))}")
+              return 1 if ecarts else 0
+
+
+          if __name__ == "__main__":
+              sys.exit(principal())
