@@ -23,7 +23,8 @@ concurrency:
 jobs:
   conventions:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 10 minutes : chaque appel peut être retenté trois fois, voir ATTENTES.
+    timeout-minutes: 10
     steps:
       - name: Vérifier titre, branche, corps et commits
         shell: python
@@ -185,9 +186,11 @@ jobs:
           # --- regles des conventions : fin ---
 
 
+          import http.client
           import json
           import os
           import sys
+          import time
           import urllib.error
           import urllib.request
 
@@ -196,19 +199,44 @@ jobs:
           MARQUE = "<!-- conventions:rapport -->"
           NOMS = {"feature": "feature vers dev", "integration": "intégration dev vers main",
                   "resync": "resynchronisation main vers dev", "interdite": "vers main"}
+          # Une erreur passagère de GitHub est retentée trois fois, après 2, 5 puis 10 s : ce
+          # contrôle est exigé pour fusionner, et un 504 le ferait échouer pour rien (le Suivi
+          # en a reçu un le 22/10/2026).
+          ATTENTES = (2, 5, 10)
+
+
+          def passagere(ex):
+              """Vrai pour une erreur qu'une nouvelle tentative peut lever : 5xx, limite de débit,
+              délai dépassé, connexion coupée. Un 404 ou un 422 ne change pas en réessayant."""
+              if isinstance(ex, urllib.error.HTTPError):
+                  return ex.code >= 500 or ex.code == 429 or (ex.code == 403 and (ex.headers or {}).get("Retry-After") is not None)
+              return isinstance(ex, (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException))
 
 
           def appel(methode, chemin, corps=None):
               donnees = None if corps is None else json.dumps(corps).encode("utf-8")
-              requete = urllib.request.Request(API + chemin, data=donnees, method=methode)
-              requete.add_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
-              requete.add_header("Accept", "application/vnd.github+json")
-              requete.add_header("X-GitHub-Api-Version", "2022-11-28")
-              if donnees is not None:
-                  requete.add_header("Content-Type", "application/json")
-              with urllib.request.urlopen(requete, timeout=30) as r:
-                  brut = r.read()
-              return json.loads(brut) if brut else None
+              for tentative, attente in enumerate(ATTENTES + (None,), start=1):
+                  requete = urllib.request.Request(API + chemin, data=donnees, method=methode)
+                  requete.add_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
+                  requete.add_header("Accept", "application/vnd.github+json")
+                  requete.add_header("X-GitHub-Api-Version", "2022-11-28")
+                  if donnees is not None:
+                      requete.add_header("Content-Type", "application/json")
+                  try:
+                      with urllib.request.urlopen(requete, timeout=30) as r:
+                          brut = r.read()
+                      return json.loads(brut) if brut else None
+                  except Exception as ex:
+                      if attente is None or not passagere(ex):
+                          raise
+                      if isinstance(ex, urllib.error.HTTPError):
+                          try:
+                              attente = max(attente, min(int((ex.headers or {}).get("Retry-After") or 0), 60))
+                          except ValueError:
+                              pass
+                      print(f"::warning title=API GitHub::{methode} {chemin} : {commande(str(ex))} ; "
+                            f"tentative {tentative + 1} dans {attente} s")
+                      time.sleep(attente)
 
 
           def pages(chemin, maximum):
@@ -237,7 +265,9 @@ jobs:
 
           def commenter(numero, ecarts, quelle):
               """Un seul commentaire par pull request, réécrit à chaque passage : c'est là
-              que les rôles lisent ce qu'il faut corriger. Créé au premier échec seulement."""
+              que les rôles lisent ce qu'il faut corriger. Créé au premier échec seulement.
+              Si une création retentée en a laissé deux, tous sont réécrits : aucun ne garde
+              un état périmé."""
               existants = [c for c in pages(f"/repos/{DEPOT}/issues/{numero}/comments", 10)
                            if (c.get("body") or "").startswith(MARQUE)
                            and (c.get("user") or {}).get("login") == "github-actions[bot]"]
@@ -249,9 +279,10 @@ jobs:
                   corps = f"{MARQUE}\n## Contrôle des conventions\n\nConforme, porte {NOMS.get(quelle, quelle)}."
               else:
                   return
-              if existants:
-                  appel("PATCH", f"/repos/{DEPOT}/issues/comments/{existants[0]['id']}", {"body": corps})
-              else:
+              for c in existants:
+                  if c.get("body") != corps:
+                      appel("PATCH", f"/repos/{DEPOT}/issues/comments/{c['id']}", {"body": corps})
+              if not existants:
                   appel("POST", f"/repos/{DEPOT}/issues/{numero}/comments", {"body": corps})
 
 
