@@ -22,8 +22,8 @@ Le pipeline s'appuie sur huit rôles, chacun avec une responsabilité unique :
 
 ## Labels
 
-- `type:resync` — resynchronisation de `dev` depuis `main`
-- `type:integration` — intégration de `dev` vers `main`
+Les labels de porte (`stage:`) et de type (`type:`) sont documentés dans
+[`docs/labels.md`](docs/labels.md).
 
 ## CI
 
