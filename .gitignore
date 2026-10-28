@@ -28,3 +28,9 @@ Thumbs.db
 # CI / temp
 .tmp/
 .test-output/
+
+# Node
+node_modules/
+
+# Site de documentation généré (npm run build)
+site/
