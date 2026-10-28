@@ -1,0 +1,181 @@
+/* Feuille de style du site de documentation généré. */
+
+:root {
+  --fond: #ffffff;
+  --texte: #1f2328;
+  --texte-doux: #59636e;
+  --bordure: #d1d9e0;
+  --accent: #0969da;
+  --fond-code: #f6f8fa;
+  --fond-menu: #f6f8fa;
+  --largeur: 60rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--texte);
+  background: var(--fond);
+}
+
+.entete {
+  border-bottom: 1px solid var(--bordure);
+  background: var(--fond-menu);
+}
+
+.marque {
+  display: block;
+  max-width: var(--largeur);
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--texte);
+  text-decoration: none;
+}
+
+.conteneur {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  gap: 2rem;
+  max-width: var(--largeur);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  align-items: start;
+}
+
+.menu ul {
+  position: sticky;
+  top: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.menu li {
+  margin: 0;
+}
+
+.menu a {
+  display: block;
+  padding: 0.3rem 0.6rem;
+  border-left: 2px solid transparent;
+  color: var(--texte);
+  text-decoration: none;
+}
+
+.menu a:hover {
+  color: var(--accent);
+  background: var(--fond-code);
+}
+
+.menu a.courant {
+  border-left-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.contenu {
+  min-width: 0;
+}
+
+.contenu h1,
+.contenu h2,
+.contenu h3,
+.contenu h4,
+.contenu h5,
+.contenu h6 {
+  line-height: 1.25;
+  margin: 1.5em 0 0.5em;
+}
+
+.contenu h1 {
+  font-size: 2em;
+  border-bottom: 1px solid var(--bordure);
+  padding-bottom: 0.3em;
+}
+
+.contenu h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--bordure);
+  padding-bottom: 0.3em;
+}
+
+.contenu a {
+  color: var(--accent);
+}
+
+.contenu code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: var(--fond-code);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+.contenu pre {
+  background: var(--fond-code);
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.contenu pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+.contenu table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.contenu th,
+.contenu td {
+  border: 1px solid var(--bordure);
+  padding: 0.4rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.contenu th {
+  background: var(--fond-menu);
+  font-weight: 600;
+}
+
+.contenu blockquote {
+  margin: 1rem 0;
+  padding: 0.1rem 1rem;
+  border-left: 4px solid var(--bordure);
+  color: var(--texte-doux);
+}
+
+.contenu hr {
+  border: none;
+  border-top: 1px solid var(--bordure);
+  margin: 2rem 0;
+}
+
+.contenu img {
+  max-width: 100%;
+}
+
+@media (max-width: 48rem) {
+  .conteneur {
+    grid-template-columns: 1fr;
+  }
+
+  .menu ul {
+    position: static;
+  }
+}
