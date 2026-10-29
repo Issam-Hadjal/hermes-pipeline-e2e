@@ -5,6 +5,7 @@
   "description": "Documentation du pipeline multi-agents Hermes, et son site statique.",
   "scripts": {
     "build": "node outils/build.mjs",
+    "lint": "node outils/check-links.mjs",
     "test": "node --test"
   }
 }
