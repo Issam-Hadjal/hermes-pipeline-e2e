@@ -16,6 +16,8 @@ portent des ancres, et les liens internes mènent aux bonnes pages.
 - `outils/markdown.mjs` — conversion Markdown → HTML (titres, listes imbriquées,
   code, gras, italique, liens, tableaux).
 - `outils/build.mjs` — lit `README.md` et `docs/*.md`, assemble les pages.
+- `outils/search-index.mjs` — extrait le texte des guides et construit l'index
+  de recherche plein texte.
 - `outils/gabarit.html` — le squelette commun (en-tête, menu, contenu).
 - `outils/style.css` — la feuille de style, copiée telle quelle dans `site/`.
 - `site/` — le résultat. Non versionné : il figure dans `.gitignore`.
@@ -44,6 +46,10 @@ npm run build
 ```
 
 Le contenu de `site/` est régénéré de zéro à chaque exécution.
+
+Le build produit aussi `site/search-index.json` : un index plein texte qui
+associe chaque mot des guides aux pages où il apparaît et à sa position dans le
+texte, prêt à être consommé par la page de recherche.
 
 ## Prévisualiser en local
 
