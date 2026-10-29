@@ -30,6 +30,10 @@ portent des ancres, et les liens internes mènent aux bonnes pages.
 - **Ancres de titres.** Chaque titre reçoit un `id` calculé comme sur GitHub
   (minuscules, espaces remplacés par des tirets, ponctuation retirée). Deux
   titres identiques reçoivent un suffixe `-1`, `-2`, etc.
+- **Sommaire.** Chaque guide qui porte des titres de niveau 2 ou 3 affiche en
+  haut de sa page une table des matières : ces titres y sont listés dans
+  l'ordre, chacun lié à son ancre, les niveaux 3 indentés. Un guide sans titre
+  de niveau 2 ni 3 n'a pas de sommaire, et la page d'accueil non plus.
 - **Page d'accueil.** `index.html` affiche le contenu de `README.md`, suivi de
   la liste des guides.
 
