@@ -1,0 +1,10 @@
+<h1>Recherche</h1>
+<form class="recherche" role="search">
+  <label class="recherche-champ" for="q">
+    <span class="recherche-libelle">Rechercher dans les guides</span>
+    <input type="search" id="q" name="q" placeholder="Tapez un mot…" autocomplete="off">
+  </label>
+</form>
+<p class="recherche-note">La recherche s'exécute dans le navigateur, à partir de l'index construit par le build.</p>
+<ul class="resultats" id="resultats" aria-live="polite"></ul>
+<script type="module" src="search.js"></script>

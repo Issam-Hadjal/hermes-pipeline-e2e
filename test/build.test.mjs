@@ -34,8 +34,9 @@ test('build : crée index.html et une page par guide', () => {
   const { pages } = build({ root, outDir });
 
   const guides = readdirSync(docsDir).filter((f) => f.endsWith('.md'));
-  assert.equal(pages.length, guides.length + 1, 'index + une page par guide');
+  assert.equal(pages.length, guides.length + 2, 'index + recherche + une page par guide');
   assert.ok(pages.includes('index.html'));
+  assert.ok(pages.includes('recherche.html'));
   assert.ok(existsSync(path.join(outDir, 'index.html')));
   assert.ok(existsSync(path.join(outDir, 'style.css')));
 
@@ -91,6 +92,8 @@ test('build : les séquences $ de remplacement sont insérées à l’identique'
   writeFileSync(path.join(tmp, 'README.md'), '# Accueil\n');
   copyFileSync(path.join(root, 'outils', 'gabarit.html'), path.join(tmp, 'outils', 'gabarit.html'));
   copyFileSync(path.join(root, 'outils', 'style.css'), path.join(tmp, 'outils', 'style.css'));
+  copyFileSync(path.join(root, 'outils', 'recherche.html'), path.join(tmp, 'outils', 'recherche.html'));
+  copyFileSync(path.join(root, 'outils', 'search.js'), path.join(tmp, 'outils', 'search.js'));
   writeFileSync(
     path.join(tmp, 'docs', 'guide.md'),
     ['# Guide', '', '```sh', "echo $'apostrophe'", 'echo $&', 'echo $$', '```', ''].join('\n'),

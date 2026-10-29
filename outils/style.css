@@ -202,6 +202,60 @@ body {
   max-width: 100%;
 }
 
+.recherche-champ {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--texte-doux);
+}
+
+.recherche-libelle {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.recherche input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+}
+
+.recherche-note {
+  color: var(--texte-doux);
+  font-size: 0.9rem;
+}
+
+.resultats {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+}
+
+.resultat {
+  margin: 0 0 1.25rem;
+}
+
+.resultat a {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.resultat p {
+  margin: 0.25rem 0 0;
+}
+
+.resultat mark {
+  background: #fff8c5;
+  border-radius: 2px;
+  padding: 0 0.1em;
+}
+
+.resultat.erreur {
+  color: var(--texte-doux);
+}
+
 @media (max-width: 48rem) {
   .conteneur {
     grid-template-columns: 1fr;
