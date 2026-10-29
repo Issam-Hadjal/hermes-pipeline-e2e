@@ -39,11 +39,12 @@ export function extractTitle(markdown) {
 
 function menuHtml(guides, currentPage) {
   const home = `<li><a href="index.html"${currentPage === 'index.html' ? ' class="courant" aria-current="page"' : ''}>Accueil</a></li>`;
+  const recherche = `<li><a href="recherche.html"${currentPage === 'recherche.html' ? ' class="courant" aria-current="page"' : ''}>Recherche</a></li>`;
   const items = guides.map((g) => {
     const cls = currentPage === g.page ? ' class="courant" aria-current="page"' : '';
     return `<li><a href="${g.page}"${cls}>${esc(g.titre)}</a></li>`;
   });
-  return `${home}\n${items.join('\n')}`;
+  return `${home}\n${recherche}\n${items.join('\n')}`;
 }
 
 // La table des matières d'un guide : ses titres de niveau 2 et 3, dans l'ordre,
@@ -79,6 +80,7 @@ export function build(options = {}) {
   const outDir = options.outDir || path.join(root, 'site');
   const readmePath = path.join(root, 'README.md');
   const template = readFileSync(path.join(outilsDir, 'gabarit.html'), 'utf8');
+  const rechercheHtml = readFileSync(path.join(outilsDir, 'recherche.html'), 'utf8');
 
   const readme = readFileSync(readmePath, 'utf8');
   const files = readdirSync(docsDir)
@@ -112,13 +114,20 @@ export function build(options = {}) {
     writePage(g.page, g.titre, render(g.markdown, { linkTarget: resolveLink }), g.page, sommaire);
   }
 
+  // La page de recherche : un champ de saisie qui interroge l'index côté
+  // navigateur. Son contenu est un fragment statique (outils/recherche.html),
+  // monté dans le même gabarit que les guides.
+  writePage('recherche.html', 'Recherche', rechercheHtml, 'recherche.html');
+
   copyFileSync(path.join(outilsDir, 'style.css'), path.join(outDir, 'style.css'));
+  // Le module de recherche est recopié tel quel pour être chargé par la page.
+  copyFileSync(path.join(outilsDir, 'search.js'), path.join(outDir, 'search.js'));
 
   // L'index de recherche plein texte des guides, consommé par la page de
   // recherche : un mot -> les guides où il apparaît et ses positions.
   writeFileSync(path.join(outDir, 'search-index.json'), JSON.stringify(buildIndex(guides)));
 
-  return { outDir, pages: ['index.html', ...guides.map((g) => g.page)] };
+  return { outDir, pages: ['index.html', 'recherche.html', ...guides.map((g) => g.page)] };
 }
 
 if (import.meta.main) {
