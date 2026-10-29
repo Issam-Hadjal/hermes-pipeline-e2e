@@ -6,6 +6,7 @@ import { readFileSync, readdirSync, mkdirSync, writeFileSync, copyFileSync, rmSy
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { render, headings } from './markdown.mjs';
+import { buildIndex } from './search-index.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,8 +87,8 @@ export function build(options = {}) {
 
   const guides = files
     .map((f) => {
-      const md = readFileSync(path.join(docsDir, f), 'utf8');
-      return { page: f.replace(/\.md$/, '.html'), titre: extractTitle(md) || path.basename(f, '.md') };
+      const markdown = readFileSync(path.join(docsDir, f), 'utf8');
+      return { page: f.replace(/\.md$/, '.html'), titre: extractTitle(markdown) || path.basename(f, '.md'), markdown };
     })
     .sort((a, b) => a.titre.localeCompare(b.titre, 'fr'));
 
@@ -107,12 +108,15 @@ export function build(options = {}) {
 
   // Une page par guide.
   for (const g of guides) {
-    const md = readFileSync(path.join(docsDir, g.page.replace(/\.html$/, '.md')), 'utf8');
-    const sommaire = tocHtml(headings(md));
-    writePage(g.page, g.titre, render(md, { linkTarget: resolveLink }), g.page, sommaire);
+    const sommaire = tocHtml(headings(g.markdown));
+    writePage(g.page, g.titre, render(g.markdown, { linkTarget: resolveLink }), g.page, sommaire);
   }
 
   copyFileSync(path.join(outilsDir, 'style.css'), path.join(outDir, 'style.css'));
+
+  // L'index de recherche plein texte des guides, consommé par la page de
+  // recherche : un mot -> les guides où il apparaît et ses positions.
+  writeFileSync(path.join(outDir, 'search-index.json'), JSON.stringify(buildIndex(guides)));
 
   return { outDir, pages: ['index.html', ...guides.map((g) => g.page)] };
 }
