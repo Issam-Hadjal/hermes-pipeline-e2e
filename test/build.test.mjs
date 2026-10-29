@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync, mkdtempSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
@@ -78,6 +78,36 @@ test('build : le menu liste tous les guides et met en évidence le guide courant
     assert.ok(botDev.includes(t), `le menu mentionne « ${t} »`);
   }
   assert.match(botDev, /<a href="bot-dev\.html" class="courant" aria-current="page">/);
+});
+
+test('build : les séquences $ de remplacement sont insérées à l’identique', () => {
+  // Un guide dont le bloc de code contient les séquences spéciales de
+  // String.prototype.replace. Avant la correction, `$'` recopiait le reste du
+  // gabarit au milieu du contenu, `$&` la cible de la substitution, `$$` un
+  // simple `$` : la page générée était cassée.
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'site-echap-'));
+  mkdirSync(path.join(tmp, 'docs'), { recursive: true });
+  mkdirSync(path.join(tmp, 'outils'), { recursive: true });
+  writeFileSync(path.join(tmp, 'README.md'), '# Accueil\n');
+  copyFileSync(path.join(root, 'outils', 'gabarit.html'), path.join(tmp, 'outils', 'gabarit.html'));
+  copyFileSync(path.join(root, 'outils', 'style.css'), path.join(tmp, 'outils', 'style.css'));
+  writeFileSync(
+    path.join(tmp, 'docs', 'guide.md'),
+    ['# Guide', '', '```sh', "echo $'apostrophe'", 'echo $&', 'echo $$', '```', ''].join('\n'),
+  );
+
+  build({ root: tmp, outDir: path.join(tmp, 'site') });
+  const html = readFileSync(path.join(tmp, 'site', 'guide.html'), 'utf8');
+  const code = html.match(/<pre><code[^>]*>([\s\S]*?)<\/code><\/pre>/)?.[1];
+
+  assert.ok(code, 'bloc de code présent dans la page générée');
+  assert.ok(code.includes("$'"), "la séquence $' est recopiée telle quelle");
+  // Le convertisseur Markdown échappe `&` en `&amp;` (comportement attendu) ; la
+  // séquence `$&` doit rester intacte et ne pas être remplacée par `{{CONTENU}}`.
+  assert.ok(code.includes('$&amp;'), 'la séquence $& est recopiée (le & échappé)');
+  assert.ok(code.includes('$$'), 'la séquence $$ est recopiée telle quelle');
+  // La page ne doit pas être cassée : une seule fermeture de <main>.
+  assert.equal((html.match(/<\/main>/g) || []).length, 1, 'une seule fermeture de <main>');
 });
 
 test('acceptation : aucune dépendance npm déclarée', () => {
