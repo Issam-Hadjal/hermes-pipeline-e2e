@@ -20,6 +20,8 @@ function siteDeFacon(guides, readme = '# Accueil\n') {
   writeFileSync(path.join(tmp, 'README.md'), readme);
   copyFileSync(path.join(root, 'outils', 'gabarit.html'), path.join(tmp, 'outils', 'gabarit.html'));
   copyFileSync(path.join(root, 'outils', 'style.css'), path.join(tmp, 'outils', 'style.css'));
+  copyFileSync(path.join(root, 'outils', 'recherche.html'), path.join(tmp, 'outils', 'recherche.html'));
+  copyFileSync(path.join(root, 'outils', 'search.js'), path.join(tmp, 'outils', 'search.js'));
   for (const [name, md] of Object.entries(guides)) {
     writeFileSync(path.join(tmp, 'docs', name), md);
   }
