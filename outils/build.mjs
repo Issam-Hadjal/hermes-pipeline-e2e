@@ -46,10 +46,14 @@ function menuHtml(guides, currentPage) {
 }
 
 function page(template, { titre, contenu, guides, currentPage }) {
+  // Les remplacements passent par une fonction plutôt qu'une chaîne : une
+  // chaîne de remplacement fait interpréter à `String.prototype.replace` les
+  // séquences `$'`, `$&`, `$$`, etc. présentes dans le contenu du guide, ce qui
+  // cassait la page générée. Une fonction restitue sa valeur à l'identique.
   return template
-    .replace('{{TITRE}}', esc(titre))
-    .replace('{{MENU}}', menuHtml(guides, currentPage))
-    .replace('{{CONTENU}}', contenu);
+    .replace('{{TITRE}}', () => esc(titre))
+    .replace('{{MENU}}', () => menuHtml(guides, currentPage))
+    .replace('{{CONTENU}}', () => contenu);
 }
 
 export function build(options = {}) {
