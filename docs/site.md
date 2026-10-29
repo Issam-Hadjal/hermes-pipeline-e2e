@@ -18,6 +18,10 @@ portent des ancres, et les liens internes mènent aux bonnes pages.
 - `outils/build.mjs` — lit `README.md` et `docs/*.md`, assemble les pages.
 - `outils/search-index.mjs` — extrait le texte des guides et construit l'index
   de recherche plein texte.
+- `outils/search.js` — la recherche côté navigateur : charge l'index, construit
+  un extrait autour du mot trouvé et le met en évidence.
+- `outils/recherche.html` — le contenu de la page de recherche (champ de saisie
+  et zone de résultats), monté dans le gabarit commun.
 - `outils/gabarit.html` — le squelette commun (en-tête, menu, contenu).
 - `outils/style.css` — la feuille de style, copiée telle quelle dans `site/`.
 - `site/` — le résultat. Non versionné : il figure dans `.gitignore`.
@@ -38,6 +42,10 @@ portent des ancres, et les liens internes mènent aux bonnes pages.
   de niveau 2 ni 3 n'a pas de sommaire, et la page d'accueil non plus.
 - **Page d'accueil.** `index.html` affiche le contenu de `README.md`, suivi de
   la liste des guides.
+- **Recherche.** Le menu de chaque page pointe vers `recherche.html` : un champ
+  de saisie interroge, à la frappe et sans autre appel réseau que le chargement
+  de l'index, les guides construits ; chaque résultat montre le titre du guide
+  lié et un extrait autour du mot trouvé, le mot mis en évidence.
 
 ## Construire
 
