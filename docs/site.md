@@ -42,10 +42,10 @@ portent des ancres, et les liens internes mènent aux bonnes pages.
   de niveau 2 ni 3 n'a pas de sommaire, et la page d'accueil non plus.
 - **Page d'accueil.** `index.html` affiche le contenu de `README.md`, suivi de
   la liste des guides.
-- **Recherche.** Le menu de chaque page pointe vers `recherche.html` : un champ
-  de saisie interroge, à la frappe et sans autre appel réseau que le chargement
-  de l'index, les guides construits ; chaque résultat montre le titre du guide
-  lié et un extrait autour du mot trouvé, le mot mis en évidence.
+- **Recherche.** Le menu de chaque page pointe vers la page `site/recherche.html`
+  : un champ de saisie interroge, à la frappe et sans autre appel réseau que le
+  chargement de l'index, les guides construits ; chaque résultat montre le titre
+  du guide lié et un extrait autour du mot trouvé, le mot mis en évidence.
 
 ## Construire
 
@@ -85,6 +85,22 @@ npm test
 
 Les tests de `test/` couvrent le convertisseur Markdown et le montage du site
 (liens réécrits, pages présentes, ancres).
+
+## Vérifier les liens
+
+```bash
+npm run lint
+```
+
+`outils/check-links.mjs` parcourt tous les fichiers Markdown du dépôt et
+contrôle chaque lien interne vers un guide `.md` : le fichier cible doit
+exister, et l'ancre éventuelle doit correspondre à un titre de ce fichier. Les
+liens externes et les cibles non Markdown sont ignorés.
+
+Chaque lien cassé est écrit sur la sortie d'erreur au format
+`fichier:ligne : cause`, la cause étant `fichier absent : <cible>` ou
+`ancre absente : <cible#ancre>`. Le script termine avec un code de sortie non
+nul quand au moins un lien est cassé.
 
 ## Quand le mettre à jour
 
