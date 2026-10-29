@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync, mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { render } from './markdown.mjs';
+import { render, headings } from './markdown.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,13 +45,28 @@ function menuHtml(guides, currentPage) {
   return `${home}\n${items.join('\n')}`;
 }
 
-function page(template, { titre, contenu, guides, currentPage }) {
+// La table des matières d'un guide : ses titres de niveau 2 et 3, dans l'ordre,
+// chacun lié à son ancre. Les niveaux 3 sont indentés pour les distinguer des
+// niveaux 2. Sans titre de niveau 2 ni 3, il n'y a rien à lister : chaîne vide.
+function tocHtml(all) {
+  const items = all
+    .filter((h) => h.level === 2 || h.level === 3)
+    .map((h) => {
+      const cls = h.level === 3 ? ' class="niveau-3"' : '';
+      return `<li${cls}><a href="#${h.anchor}">${esc(h.text)}</a></li>`;
+    });
+  if (items.length === 0) return '';
+  return `<nav class="sommaire" aria-label="Sommaire">\n<ul>\n${items.join('\n')}\n</ul>\n</nav>`;
+}
+
+function page(template, { titre, contenu, sommaire, guides, currentPage }) {
   // Les remplacements passent par une fonction plutôt qu'une chaîne : une
   // chaîne de remplacement fait interpréter à `String.prototype.replace` les
   // séquences `$'`, `$&`, `$$`, etc. présentes dans le contenu du guide, ce qui
   // cassait la page générée. Une fonction restitue sa valeur à l'identique.
   return template
     .replace('{{TITRE}}', () => esc(titre))
+    .replace('{{SOMMAIRE}}', () => sommaire)
     .replace('{{MENU}}', () => menuHtml(guides, currentPage))
     .replace('{{CONTENU}}', () => contenu);
 }
@@ -79,8 +94,8 @@ export function build(options = {}) {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
-  const writePage = (name, titre, contenu, currentPage) => {
-    writeFileSync(path.join(outDir, name), page(template, { titre, contenu, guides, currentPage }));
+  const writePage = (name, titre, contenu, currentPage, sommaire = '') => {
+    writeFileSync(path.join(outDir, name), page(template, { titre, contenu, sommaire, guides, currentPage }));
   };
 
   // Page d'accueil : le contenu de README.md, suivi de la liste des guides.
@@ -93,7 +108,8 @@ export function build(options = {}) {
   // Une page par guide.
   for (const g of guides) {
     const md = readFileSync(path.join(docsDir, g.page.replace(/\.html$/, '.md')), 'utf8');
-    writePage(g.page, g.titre, render(md, { linkTarget: resolveLink }), g.page);
+    const sommaire = tocHtml(headings(md));
+    writePage(g.page, g.titre, render(md, { linkTarget: resolveLink }), g.page, sommaire);
   }
 
   copyFileSync(path.join(outilsDir, 'style.css'), path.join(outDir, 'style.css'));

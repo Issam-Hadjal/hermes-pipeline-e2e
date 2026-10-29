@@ -30,6 +30,37 @@ export function slugify(text) {
   return cleaned || 'section';
 }
 
+// Les titres d'un document, dans l'ordre, avec leur niveau (1 à 6) et leur ancre
+// calculée comme sur GitHub, doublons suffixés -1, -2, etc. La déduplication
+// compte tous les niveaux, exactement comme dans `render`, afin que les ancres
+// renvoyées ici coïncident avec les `id` posés sur les balises de titre. Les
+// titres à l'intérieur d'un bloc de code sont ignorés.
+export function headings(markdown) {
+  const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n');
+  const seen = new Map();
+  const out = [];
+  let open = null; // { marker, len } tant qu'un bloc de code est ouvert
+  for (const line of lines) {
+    const fence = fenceMatch(line);
+    if (fence) {
+      if (open === null) {
+        open = { marker: fence[1][0], len: fence[1].length };
+      } else if (isFenceClose(line, open.marker, open.len)) {
+        open = null;
+      }
+      continue;
+    }
+    if (open !== null) continue;
+    const heading = headingMatch(line);
+    if (!heading) continue;
+    const base = slugify(heading[2].trim());
+    const n = seen.get(base) || 0;
+    seen.set(base, n + 1);
+    out.push({ level: heading[1].length, text: heading[2].trim(), anchor: n === 0 ? base : `${base}-${n}` });
+  }
+  return out;
+}
+
 function isBlank(line) {
   return /^\s*$/.test(line);
 }
