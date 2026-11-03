@@ -38,12 +38,13 @@ affichées dans l'interface, et **totalement inertes**. Aucune ne bloque quoi qu
 ce soit. Le pipeline semblerait fonctionner alors qu'aucune porte ne tient. Ce
 piège est silencieux : rien ne signale la différence.
 
-**Cocher « Add a README file ».**
+**Ne pas cocher « Add a README file ».** Le dépôt reste vide : son premier
+commit viendra de l'humain, pas de GitHub.
 
-Contre-intuitif, puisque la structure est le travail du provisionneur. La raison
-est mécanique : un dépôt totalement vide n'a aucun commit, donc aucune branche
-par défaut. Le provisionneur devrait fabriquer le commit initial, un chemin qui
-n'a jamais été éprouvé. Avec un README, `main` existe et il travaille par-dessus.
+**Premier push : le squelette et son AGENTS.md, faits par l'humain.** Cloner le
+dépôt vide, y poser le squelette du projet accompagné de son `AGENTS.md`, puis
+pousser sur `main`. Ce premier commit crée la branche par défaut et donne au
+provisionneur une base sur laquelle travailler.
 
 **Ne rien créer d'autre.** Pas de branche `dev`, pas de `.gitignore`, pas de
 licence, pas de modèle de pull request. C'est le travail du provisionneur, et
@@ -267,11 +268,14 @@ Une carte au tableau, assignée à `bot-admin`.
 
 ```
 Dépôt : Issam-Hadjal/NOM-DU-DEPOT
+Production : non
 
-Le dépôt vient d'être créé et ne contient qu'un README d'initialisation.
+Le dépôt vient d'être créé : l'humain a poussé le squelette du projet et
+son AGENTS.md sur main.
 Les cinq Apps y sont installées et les canaux du broker sont ouverts.
 
 Provisionne-le pour que le pipeline puisse y travailler.
+Vérifie qu'AGENTS.md est présent sur main et signale-le s'il manque.
 
 Dans ton rapport, sépare ce que tu as créé, ce qui existait déjà,
 et ce que tu n'as pas pu vérifier.
@@ -285,6 +289,15 @@ La carte est volontairement **minimale**. Détailler l'attendu reviendrait à
 tester sa propre capacité à écrire une carte plutôt que la personnalité du
 provisionneur. S'il produit l'état complet à partir de si peu, sa personnalité
 tient.
+
+La ligne « Production : » signale si le projet est déployé. À « Production :
+oui », bot-admin crée en plus la branche `production` depuis `main` et la protège
+avec le ruleset `protect-production`. À « non », il ne crée rien de plus — la
+valeur par défaut d'un projet neuf.
+
+La vérification d'`AGENTS.md` sur `main` remplace l'ancien README
+d'initialisation : si le squelette n'a pas été poussé, bot-admin le signale au
+lieu de provisionner un dépôt vide.
 
 Le provisionneur est déclenché par un humain, **jamais par le pipeline**. S'il
 reçoit une carte au milieu d'un cycle de feature, c'est une erreur de routage et
@@ -312,7 +325,7 @@ workflow.
 
 ### État attendu
 
-**Branches** — `main` et `dev`.
+**Branches** — `main` et `dev` ; `production` si le projet est déployé.
 
 **Réglages de fusion** — squash `true`, merge `true`, rebase `false`,
 suppression automatique de la branche source `true`.
@@ -321,7 +334,9 @@ suppression automatique de la branche source `true`.
 
 **Règles de protection** — deux règles, `protect-main` visant la branche par
 défaut et `protect-dev` visant `refs/heads/dev`. Chacune portant quatre types :
-`deletion`, `non_fast_forward`, `pull_request`, `required_status_checks`.
+`deletion`, `non_fast_forward`, `pull_request`, `required_status_checks`. Pour un
+projet déployé, une troisième règle `protect-production` vise
+`refs/heads/production`.
 
 **Paramètres de pull request** — `required_approving_review_count: 1` et
 `require_last_push_approval: true` sur les deux. Contournements **vides**.
@@ -329,8 +344,9 @@ défaut et `protect-dev` visant `refs/heads/dev`. Chacune portant quatre types :
 **Méthodes de fusion autorisées** — `["merge"]` sur la principale,
 `["merge","squash"]` sur l'intégration.
 
-**Structure** — README, `.gitignore`, `CONTRIBUTING.md`, modèle de pull request,
-et au moins un fichier sous `.github/workflows/`.
+**Structure** — le squelette du projet et son `AGENTS.md`, `.gitignore`,
+`CONTRIBUTING.md`, modèle de pull request, et au moins un fichier sous
+`.github/workflows/`.
 
 ### Deux points à vérifier explicitement
 
