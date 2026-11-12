@@ -16,3 +16,4 @@
 2026-11-03 — Hermes v0.22.6 — issue #197
 
 2026-11-11 — Hermes v0.23.1 — issue #205
+2026-11-12 — Hermes v0.23.1 — issue #209
